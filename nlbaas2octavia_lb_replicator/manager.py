@@ -42,7 +42,7 @@ class Manager(object):
                 healthmonitor_id = pool['healthmonitor']['id']
                 lb_healthmonitor = (
                     self.os_clients.neutronclient
-                    .show_health_monitor(healthmonitor_id)
+                    .show_lbaas_healthmonitor(healthmonitor_id)
                 )
                 self._lb_healthmonitors[healthmonitor_id] = lb_healthmonitor
             for member in pool['members']:
@@ -106,10 +106,9 @@ class Manager(object):
     def _build_healthmonitor_obj(self, pool_id):
         nlbaas_pool_data = self._lb_pools[pool_id]['pool']
         octavia_hm = None
-
         if nlbaas_pool_data.get('healthmonitor_id'):
             healthmonitor_id = nlbaas_pool_data['healthmonitor_id']
-            healthmonitor_data = self._lb_healthmonitors[healthmonitor_id]
+            healthmonitor_data = self._lb_healthmonitors[healthmonitor_id]['healthmonitor']
             octavia_hm = {
                 'type': healthmonitor_data.get('type'),
                 'delay': healthmonitor_data.get('delay'),
@@ -149,7 +148,6 @@ class Manager(object):
             self._lb_def_pool_id = nlbaas_listener_data['default_pool_id']
             nlbaas_default_pool_data = \
                 self._lb_pools[self._lb_def_pool_id]['pool']
-
             octavia_listener = {
                 'name': nlbaas_listener_data['name'],
                 'protocol': nlbaas_listener_data['protocol'],
