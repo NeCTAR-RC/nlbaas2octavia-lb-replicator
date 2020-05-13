@@ -52,7 +52,7 @@ class OpenStackClients(object):
 
     def get_octaviaclient(self):
         keystone = keystoneclient.Client(session=self._keystone_session)
-        service_id = keystone.services.list(name='octavia')[0].id
+        service_id = keystone.services.list(type='load-balancer')[0].id
         octavia_endpoint = keystone.endpoints.list(service=service_id,
                                                    interface='public')[0].url
         return octaviaclient.OctaviaAPI(session=self._keystone_session,
