@@ -11,6 +11,7 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+import json
 import sys
 
 from nlbaas2octavia_lb_replicator import manager
@@ -21,7 +22,12 @@ def main():
 
     args = parser.process_args()
     lb_data_filename = ''.join([args.lb_id, '_data', '.json'])
-    lb_replicator = manager.Manager(args.lb_id)
+
+    fip_map = {}
+    if args.fip_map:
+        fip_map = json.load(args.fip_map)
+
+    lb_replicator = manager.Manager(args.lb_id, fip_map)
 
     # Collect all the data about the Neutron-LBaaS based load balancer.
 
@@ -40,7 +46,8 @@ def main():
 
     else:
         # Build an Octavia load balancer tree and create it.
-        lb_replicator.octavia_load_balancer_create(args.reuse_vip)
+        lb_replicator.octavia_load_balancer_create(args.reuse_vip,
+                                                   args.availability_zone)
 
 
 if __name__ == '__main__':

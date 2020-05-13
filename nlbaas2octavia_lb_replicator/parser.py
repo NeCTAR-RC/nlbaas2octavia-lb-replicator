@@ -28,6 +28,16 @@ def process_args():
              'When no --to/from a file specified, will create it in Octavia.'
     )
     parser.add_argument(
+        '-z', '--availability_zone',
+        default=None,
+        help='AZ to create'
+    )
+    parser.add_argument(
+        '--fip_map',
+        type=open,
+        help='FIP map file'
+    )
+    parser.add_argument(
         '-v', '--reuse_vip',
         default=False,
         action='store_true',

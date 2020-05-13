@@ -21,7 +21,7 @@ from nlbaas2octavia_lb_replicator.common import utils
 
 class Manager(object):
 
-    def __init__(self, lb_id):
+    def __init__(self, lb_id, fip_map={}):
         self.os_clients = os_clients.OpenStackClients()
         self._lb_id = lb_id
         self._lb_tree = {}
@@ -31,6 +31,7 @@ class Manager(object):
         self._lb_def_pool_id = ''
         self._lb_healthmonitors = {}
         self._lb_members = {}
+        self._fip_map = fip_map
 
     def _pools_deep_scan(self, pools_list):
         for pool in pools_list:
@@ -188,12 +189,20 @@ class Manager(object):
                 octavia_lb_pools.append(octavia_pool)
         return octavia_lb_pools
 
-    def build_octavia_lb_tree(self, reuse_vip):
+    def build_octavia_lb_tree(self, reuse_vip, az=None):
         nlbaas_lb_details = self._lb_details['loadbalancer']
+        lb_fip = None
+        vip = nlbaas_lb_details['vip_address']
+        old_vip_port = nlbaas_lb_details['vip_port_id']
+        for fip in self._fip_map:
+            if fip['Port'] == old_vip_port:
+                lb_fip = fip
+                break
 
         octavia_lb_tree = {
             'loadbalancer': {
                 'name': nlbaas_lb_details['name'],
+                'availability_zone': az,
                 'description': nlbaas_lb_details['description'],
                 'admin_state_up': nlbaas_lb_details['admin_state_up'],
                 'project_id': nlbaas_lb_details['tenant_id'],
@@ -201,15 +210,23 @@ class Manager(object):
                 'listeners': self._build_listeners_list(),
                 'pools': self._build_pools_list(),
                 'vip_subnet_id': nlbaas_lb_details['vip_subnet_id'],
-                'vip_address': nlbaas_lb_details['vip_address']
+                'vip_address': vip
                 if reuse_vip else ''
             }
         }
         utils._remove_empty(octavia_lb_tree)
-        return octavia_lb_tree
+        return octavia_lb_tree, lb_fip
 
-    def octavia_load_balancer_create(self, reuse_vip):
-        octavia_lb_tree = self.build_octavia_lb_tree(reuse_vip)
+    def octavia_load_balancer_create(self, reuse_vip, az=None):
+        octavia_lb_tree, fip = self.build_octavia_lb_tree(reuse_vip, az)
         pprint(octavia_lb_tree)
-        self.os_clients.octaviaclient.load_balancer_create(
+        lb = self.os_clients.octaviaclient.load_balancer_create(
             json=octavia_lb_tree)
+        if fip:
+            vip_port = lb['loadbalancer']['vip_port_id']
+            fip_id = fip['ID']
+            body = {"floatingip": {
+                "port_id": vip_port
+                }
+            }
+            self.os_clients.neutronclient.update_floatingip(fip_id, body)
